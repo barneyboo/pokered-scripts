@@ -144,6 +144,11 @@ map_lookup = {
 -- mark these as collisions to avoid trying to walk over them
 -- TODO: detect if got Surf before forcing these to be collision tiles
 -- function setWaterCollisions()
+--     for x = 0, mapWidth - 1 do
+--         for y = 0, mapHeight - 1 do
+--             a = 1
+--         end
+--     end
 
 -- end
 
@@ -374,7 +379,7 @@ function doMove()
     --     emu:clearKeys(0x3FF)
     -- end
     shouldMove = RNG(1)
-    if shouldMove < 0xDD then
+    if shouldMove < 0xBB then
         return
     end
     emu:clearKeys(0x3FF)
@@ -404,7 +409,8 @@ function doMove()
     -- botBuffer:print(string.format("Locked field controls? %s\n", lockedFieldControls))
 
     -- use pathfinding algo
-    if path and not isSimplePathFollow and isFollowTarget and isInBattle == 0 and lockedFieldControls == 0 then
+    if path and nextPathElement and not isSimplePathFollow and isFollowTarget and isInBattle == 0 and
+        lockedFieldControls == 0 then
         nextKey = -1
         botBuffer:print(string.format("at %d,%d\n", vPosX, vPosY))
         botBuffer:print(string.format("next step: %s\n", nextPathElement))
@@ -755,15 +761,15 @@ function cameraLog()
         debugBuffer:print(string.format("🛬 === Map transition! ===\n"))
         getCurrentLocationName()
         nextPathElement = nil
-        if isMapEventsFollow then
-            chooseEventToRouteTo()
-        end
+
         stuckCount = 0
         zoneFailCount = 0
         isSimplePathFollow = false
 
         getMapCollisions()
-        -- if following map events, it will fire new targets itself
+        if isMapEventsFollow then
+            chooseEventToRouteTo()
+        end
         if not isMapEventsFollow then
             targetX = (RNG(2) % (mapWidth))
             targetY = (RNG(2) % (mapHeight))
@@ -783,9 +789,9 @@ function cameraLog()
         end
         stuckCount = 0
 
-        if zoneFailCount > zoneFailLimit then
-            isSimplePathFollow = true
-        end
+        -- if zoneFailCount > zoneFailLimit then
+        --     isSimplePathFollow = true
+        -- end
 
         -- tileMapBuffer:clear()
         -- targetX = RNG(2) % vMapWidth
@@ -810,7 +816,7 @@ function cameraLog()
 
     -- this is expensive to update so only do this about once a second
     should_update_map = RNG(1)
-    -- should_update_map = 6
+    should_update_map = 6
     if should_update_map < 2 then
 
         if (#collisionMap >= mapWidth * mapHeight) then
