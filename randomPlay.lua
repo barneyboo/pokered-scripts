@@ -74,7 +74,7 @@ LockFieldLoc = 0x03000F9C
 isNaive = false
 isFollowTarget = true
 stuckCount = 0
-stuckLimit = 350
+stuckLimit = 250
 zoneFailLimit = 10
 zoneFailCount = 0
 isSimplePathFollow = false
@@ -175,16 +175,16 @@ function chooseEventToRouteTo()
     warpCount = emu:read8(mapEventsPointer + 0x01)
     coordEventCount = emu:read8(mapEventsPointer + 0x02)
     bgEventCount = emu:read8(mapEventsPointer + 0x03)
-
-    debugBuffer:print(string.format("Map object events count: %d\n", objectEventCount))
-    debugBuffer:print(string.format("Warp count: %d\n", warpCount))
-    debugBuffer:print(string.format("Coord event count: %d\n", coordEventCount))
-    debugBuffer:print(string.format("BG event count: %d\n", bgEventCount))
+    debugBuffer:print("\n")
+    -- debugBuffer:print(string.format("Map object events count: %d\n", objectEventCount))
+    -- debugBuffer:print(string.format("Warp count: %d\n", warpCount))
+    -- debugBuffer:print(string.format("Coord event count: %d\n", coordEventCount))
+    -- debugBuffer:print(string.format("BG event count: %d\n", bgEventCount))
 
     connectionsPointer = emu:read32(MapConnectionsPointerLoc)
     connectionsCount = emu:read32(connectionsPointer)
     connectionSize = 12
-    debugBuffer:print(string.format("Connections count: %d\n", connectionsCount))
+    -- debugBuffer:print(string.format("Connections count: %d\n", connectionsCount))
     if (connectionsCount > 10) then connectionsCount = 0 end
 
     objectEventsPointer = emu:read32(mapEventsPointer + 0x04)
@@ -205,9 +205,12 @@ function chooseEventToRouteTo()
     warpEventSize = 8
     -- debugBuffer:print(string.format("First warp event is at %d,%d\n", warpX, warpY))
 
-    totalEventsCount = objectEventCount + warpCount + connectionsCount + bgEventCount
+    coordEventsPointer = emu:read32(mapEventsPointer + 0x0C)
+    coordEventSize = 16
+
+    totalEventsCount = objectEventCount + warpCount + connectionsCount + bgEventCount + coordEventCount
     eventIndex = RNG(1) % totalEventsCount
-    debugBuffer:print(string.format("Event %d of %d events\n", eventIndex, totalEventsCount))
+    -- debugBuffer:print(string.format("Event %d of %d events\n", eventIndex, totalEventsCount))
     if eventIndex < objectEventCount then
         -- object event
         objectEventIdx = eventIndex
@@ -235,7 +238,7 @@ function chooseEventToRouteTo()
         targetY = warpY + jitterY
 
 
-        debugBuffer:print(string.format("Warp pointer at %x\n", warpEventOffset))
+        -- debugBuffer:print(string.format("Warp pointer at %x\n", warpEventOffset))
         debugBuffer:print(string.format(">> Routing to warp event %d at %d,%d\n", warpEventIdx, warpX, warpY))
 
         forceRoutableAtTarget = true
@@ -243,11 +246,11 @@ function chooseEventToRouteTo()
     elseif eventIndex < objectEventCount + warpCount + connectionsCount then
         -- connections
         connectionIdx = eventIndex - (objectEventCount + warpCount)
-        debugBuffer:print(string.format("connectionsPointer %x \n", connectionsPointer))
+        -- debugBuffer:print(string.format("connectionsPointer %x \n", connectionsPointer))
         connectionListPointer = emu:read32(connectionsPointer + 0x04)
         connectionOffset = connectionListPointer + (connectionSize * connectionIdx)
         conxDirection = emu:read8(connectionOffset)
-        debugBuffer:print(string.format("conxDirection %x with val %x \n", connectionIdx, conxDirection))
+        -- debugBuffer:print(string.format("conxDirection %x with val %x \n", connectionIdx, conxDirection))
         debugBuffer:print(string.format(">> Routing to connection %d in direction %s\n", connectionIdx,
             connectionDirections[conxDirection]))
         if conxDirection == 1 then
@@ -279,21 +282,36 @@ function chooseEventToRouteTo()
         -- BG events
         bgIndex = eventIndex - (objectEventCount + warpCount + connectionsCount)
         bgOffset = bgEventsPointer + (bgEventSize * bgIndex)
-        debugBuffer:print(string.format("root bg pointer %x\n", bgEventsPointer))
-        debugBuffer:print(string.format("bgOffset %x\n", bgOffset))
+        -- debugBuffer:print(string.format("root bg pointer %x\n", bgEventsPointer))
+        -- debugBuffer:print(string.format("bgOffset %x\n", bgOffset))
         bgX = emu:read16(bgOffset) + 7
         bgY = emu:read16(bgOffset + 0x2) + 7
         jitterX = (RNG(1) % 3) - 1
         jitterY = (RNG(1) % 3) - 1
-        bgX = bgX + jitterX
-        bgY = bgY + jitterY
+        targetX = bgX + jitterX
+        targetY = bgY + jitterY
         debugBuffer:print(string.format(">> Routing to BG event %d at %d,%d\n", bgIndex,
             bgX, bgY))
-        targetX = bgX
-        targetY = bgY
         forceRoutableAtTarget = true
         calculatePathToTarget()
+    elseif eventIndex < objectEventCount + warpCount + connectionsCount + bgEventCount + coordEventCount then
+        -- Coord events
+        coordIndex = eventIndex - (objectEventCount + warpCount + connectionsCount + bgEventCount)
+        coordOffset = coordEventsPointer + (coordEventSize * coordIndex)
+        debugBuffer:print(string.format("coordOffset %x\n", coordOffset))
+        coordX = emu:read16(coordOffset) + 7
+        coordY = emu:read16(coordOffset + 0x2) + 7
+        jitterX = (RNG(1) % 3) - 1
+        jitterY = (RNG(1) % 3) - 1
+        targetX = coordX + jitterX
+        targetY = coordY + jitterY
+        debugBuffer:print(string.format(">> Routing to co-ord event %d at %d,%d\n", coordIndex,
+            coordX, coordY))
+        calculatePathToTarget()
+
     end
+
+
 
 
     if (do_first_warp_event and warpCount > 0) then
@@ -403,6 +421,7 @@ function doMove()
         if #possKeys == 0 and vPosX == nextPathElement.x and vPosY == nextPathElement.y then
             stuckCount = 0
             if (#path == 0) then
+                debugBuffer:print("✅ Successfully routed to destination! Requesting new path.\n")
                 zoneFailCount = zoneFailCount - 1
                 needNewTarget = true
             else nextPathElement = table.remove(path, 1) end
@@ -690,6 +709,7 @@ function cameraLog()
     end
 
     if stuckCount > stuckLimit then
+        debugBuffer:print("❌ Stuck trying to reach target, requesting new one.\n")
         needNewTarget = true
         -- else
         --     needNewTarget = false
