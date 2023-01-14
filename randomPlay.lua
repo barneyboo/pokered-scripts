@@ -23,7 +23,7 @@ function setupBuffer()
     tileMapBuffer = console:createBuffer("Map")
     pathfindBuffer = console:createBuffer("Pathfinder")
     debugBuffer = console:createBuffer("Debug")
-    debugBuffer:setSize(100, 80)
+    debugBuffer:setSize(100, 150)
     tileMapBuffer:setSize(100, 100)
     pathfindBuffer:setSize(100, 100)
     doMove()
@@ -174,9 +174,12 @@ function chooseEventToRouteTo()
     objectEventCount = emu:read8(mapEventsPointer)
     warpCount = emu:read8(mapEventsPointer + 0x01)
     coordEventCount = emu:read8(mapEventsPointer + 0x02)
+    bgEventCount = emu:read8(mapEventsPointer + 0x03)
+
     debugBuffer:print(string.format("Map object events count: %d\n", objectEventCount))
     debugBuffer:print(string.format("Warp count: %d\n", warpCount))
     debugBuffer:print(string.format("Coord event count: %d\n", coordEventCount))
+    debugBuffer:print(string.format("BG event count: %d\n", bgEventCount))
 
     connectionsPointer = emu:read32(MapConnectionsPointerLoc)
     connectionsCount = emu:read32(connectionsPointer)
@@ -191,6 +194,9 @@ function chooseEventToRouteTo()
     objEventY = emu:read8(objectEventsPointer + 6) + 7
     objEventSize = 24
 
+    bgEventSize = 12
+    bgEventsPointer = emu:read32(mapEventsPointer + 0x10)
+
     -- debugBuffer:print(string.format("First object event is at %d,%d\n", objEventX, objEventY))
 
     warpEventsPointer = emu:read32(mapEventsPointer + 0x08)
@@ -199,7 +205,7 @@ function chooseEventToRouteTo()
     warpEventSize = 8
     -- debugBuffer:print(string.format("First warp event is at %d,%d\n", warpX, warpY))
 
-    totalEventsCount = objectEventCount + warpCount + connectionsCount
+    totalEventsCount = objectEventCount + warpCount + connectionsCount + bgEventCount
     eventIndex = RNG(1) % totalEventsCount
     debugBuffer:print(string.format("Event %d of %d events\n", eventIndex, totalEventsCount))
     if eventIndex < objectEventCount then
@@ -237,9 +243,9 @@ function chooseEventToRouteTo()
     elseif eventIndex < objectEventCount + warpCount + connectionsCount then
         -- connections
         connectionIdx = eventIndex - (objectEventCount + warpCount)
-        connectionOffset = connectionsPointer + (connectionSize * connectionIdx)
-        conxDirection = emu:read8(conxPointer)
-        debugBuffer:print(string.format("connectionsPointer loc %x\n", connectionsPointer))
+        connectionOffset = connectionsPointer + 0x04 + (connectionSize * connectionIdx)
+        conxDirection = emu:read8(connectionOffset)
+        debugBuffer:print(string.format("conxDirection %x with val %x \n", connectionIdx, conxDirection))
         debugBuffer:print(string.format("Routing to connection %d in direction %s\n", connectionIdx,
             connectionDirections[conxDirection]))
         if conxDirection == 1 then
@@ -267,9 +273,19 @@ function chooseEventToRouteTo()
             calculatePathToTarget()
         end
 
-
-        -- TODO: support BG objects (eg. bedroom PC)
-
+    elseif eventIndex < objectEventCount + warpCount + connectionsCount + bgEventCount then
+        -- BG events
+        bgIndex = eventIndex - (objectEventCount + warpCount + connectionsCount)
+        bgOffset = bgEventsPointer + (bgEventSize * bgIndex)
+        debugBuffer:print(string.format("root bg pointer %x\n", bgEventsPointer))
+        debugBuffer:print(string.format("bgOffset %x\n", bgOffset))
+        bgX = emu:read16(bgOffset) + 7
+        bgY = emu:read16(bgOffset + 0x2) + 7
+        debugBuffer:print(string.format("Routing to BG event %d at %d,%d\n", bgIndex,
+            bgX, bgY))
+        targetX = bgX
+        targetY = bgY
+        calculatePathToTarget()
     end
 
 
@@ -612,6 +628,13 @@ function calculatePathToTarget()
     if (forceRoutableAtTarget) then
         oldCollisionValue = map[targetX][targetY]
         map[targetX][targetY] = true
+    end
+
+    if (map[savePosX + 7][savePosY + 7] == false) then
+        -- if player is on a collision tile, assume we're in the middle of a warp transition and hold off until player has moved
+        gotTargetNeedPath = true
+        debugBuffer:print(string.format("Pathing has started on a blocked tile, trying again on next frame\n"))
+        return
     end
 
     start = Vector(savePosX + 7, savePosY + 7)
