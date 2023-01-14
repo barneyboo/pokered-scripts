@@ -1,8 +1,8 @@
-#pokeroo
+# pokéroo
 
 ## wat?
 
-pokeroo is a bot i made to play pokémon firered while i work on ROM hacks, to quickly see if things are working.
+pokéroo is a bot i made to play pokémon firered while i work on ROM hacks, to quickly see if things are working.
 
 it's a horrific mess of lua scripts designed to integrate with the GBA emulator mGBA and Pokémon FireRed. it will drive a bot to navigate the map by randomly pursuing points of interest, then button mash whenever it's doing anything else (eg. in menus or in battle).
 
