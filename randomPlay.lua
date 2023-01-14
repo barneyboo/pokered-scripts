@@ -23,7 +23,7 @@ function setupBuffer()
     tileMapBuffer = console:createBuffer("Map")
     pathfindBuffer = console:createBuffer("Pathfinder")
     debugBuffer = console:createBuffer("Debug")
-    debugBuffer:setSize(100, 150)
+    debugBuffer:setSize(100, 100)
     tileMapBuffer:setSize(100, 100)
     pathfindBuffer:setSize(100, 100)
     doMove()
@@ -219,7 +219,7 @@ function chooseEventToRouteTo()
         jitterY = (RNG(1) % 3) - 1
         targetX = objEventX + jitterX
         targetY = objEventY + jitterY
-        debugBuffer:print(string.format("Routing to object event %d at %d,%d\n", objectEventIdx, objEventX, objEventY))
+        debugBuffer:print(string.format(">> Routing to object event %d at %d,%d\n", objectEventIdx, objEventX, objEventY))
         calculatePathToTarget()
     elseif eventIndex < objectEventCount + warpCount then
         -- warp event
@@ -236,17 +236,19 @@ function chooseEventToRouteTo()
 
 
         debugBuffer:print(string.format("Warp pointer at %x\n", warpEventOffset))
-        debugBuffer:print(string.format("Routing to warp event %d at %d,%d\n", warpEventIdx, warpX, warpY))
+        debugBuffer:print(string.format(">> Routing to warp event %d at %d,%d\n", warpEventIdx, warpX, warpY))
 
         forceRoutableAtTarget = true
         gotPath = calculatePathToTarget()
     elseif eventIndex < objectEventCount + warpCount + connectionsCount then
         -- connections
         connectionIdx = eventIndex - (objectEventCount + warpCount)
-        connectionOffset = connectionsPointer + 0x04 + (connectionSize * connectionIdx)
+        debugBuffer:print(string.format("connectionsPointer %x \n", connectionsPointer))
+        connectionListPointer = emu:read32(connectionsPointer + 0x04)
+        connectionOffset = connectionListPointer + (connectionSize * connectionIdx)
         conxDirection = emu:read8(connectionOffset)
         debugBuffer:print(string.format("conxDirection %x with val %x \n", connectionIdx, conxDirection))
-        debugBuffer:print(string.format("Routing to connection %d in direction %s\n", connectionIdx,
+        debugBuffer:print(string.format(">> Routing to connection %d in direction %s\n", connectionIdx,
             connectionDirections[conxDirection]))
         if conxDirection == 1 then
             -- pick a random coordinate on the south-edge without a collision bit
@@ -281,10 +283,15 @@ function chooseEventToRouteTo()
         debugBuffer:print(string.format("bgOffset %x\n", bgOffset))
         bgX = emu:read16(bgOffset) + 7
         bgY = emu:read16(bgOffset + 0x2) + 7
-        debugBuffer:print(string.format("Routing to BG event %d at %d,%d\n", bgIndex,
+        jitterX = (RNG(1) % 3) - 1
+        jitterY = (RNG(1) % 3) - 1
+        bgX = bgX + jitterX
+        bgY = bgY + jitterY
+        debugBuffer:print(string.format(">> Routing to BG event %d at %d,%d\n", bgIndex,
             bgX, bgY))
         targetX = bgX
         targetY = bgY
+        forceRoutableAtTarget = true
         calculatePathToTarget()
     end
 
@@ -338,13 +345,14 @@ end
 
 function doMove()
 
-    if not isSimplePathFollow then
-        emu:clearKeys(0x3FF)
-    end
+    -- if not isSimplePathFollow then
+    --     emu:clearKeys(0x3FF)
+    -- end
     shouldMove = RNG(1)
     if shouldMove < 0xDD then
         return
     end
+    emu:clearKeys(0x3FF)
     if isSimplePathFollow then
         emu:clearKeys(0x3FF)
     end
@@ -541,12 +549,12 @@ function getMapCollisions()
     cursorX = 0
     cursorY = 0
     mapSize = (mapWidth * mapHeight) * 2 -- each tile is 2 bytes
-    debugBuffer:print(string.format("mapSize is %d\n", mapSize))
+    -- debugBuffer:print(string.format("mapSize is %d\n", mapSize))
 
     -- mapPointer = 0x1FFFFF + emu:read16(MapLayoutData)
     mapPointer = emu:read32(MapLayoutData)
     -- debugBuffer:print(string.format("map pointer is at %x\n", mapPointer))
-    -- debugBuffer:print(string.format("map ends at %x\n", mapPointer+(mapSize)))
+    -- debugBuffer:print(string.format("map ends at %x\n", mapPointer+(got)))
 
 
     -- // Masks/shifts for blocks in the map grid
@@ -616,7 +624,7 @@ end
 
 path = nil
 function calculatePathToTarget()
-    debugBuffer:print(string.format("got map %s\n", #map))
+    -- debugBuffer:print(string.format("got map %s\n", #map))
     if #map == 0 and isMapEventsFollow then
         gotTargetNeedPath = true
         return
@@ -714,6 +722,7 @@ function cameraLog()
 
     if mapWidth ~= lastMapWidth or mapHeight ~= lastMapHeight then
         -- TODO: fix to only set targets in routable areas
+        debugBuffer:print(string.format("=== Map transition! ===\n"))
         getCurrentLocationName()
         nextPathElement = nil
         if isMapEventsFollow then
