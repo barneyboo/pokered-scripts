@@ -23,7 +23,7 @@ function setupBuffer()
     tileMapBuffer = console:createBuffer("Map")
     pathfindBuffer = console:createBuffer("Pathfinder")
     debugBuffer = console:createBuffer("Debug")
-    debugBuffer:setSize(100, 500)
+    debugBuffer:setSize(100, 80)
     tileMapBuffer:setSize(100, 100)
     pathfindBuffer:setSize(100, 100)
     doMove()
@@ -74,7 +74,7 @@ LockFieldLoc = 0x03000F9C
 isNaive = false
 isFollowTarget = true
 stuckCount = 0
-stuckLimit = 600
+stuckLimit = 350
 zoneFailLimit = 10
 zoneFailCount = 0
 isSimplePathFollow = false
@@ -180,6 +180,7 @@ function chooseEventToRouteTo()
 
     connectionsPointer = emu:read32(MapConnectionsPointerLoc)
     connectionsCount = emu:read32(connectionsPointer)
+    connectionSize = 12
     debugBuffer:print(string.format("Connections count: %d\n", connectionsCount))
     if (connectionsCount > 10) then connectionsCount = 0 end
 
@@ -188,7 +189,7 @@ function chooseEventToRouteTo()
 
     objEventX = emu:read8(objectEventsPointer + 4) + 7
     objEventY = emu:read8(objectEventsPointer + 6) + 7
-    objEventSize = 22
+    objEventSize = 24
 
     -- debugBuffer:print(string.format("First object event is at %d,%d\n", objEventX, objEventY))
 
@@ -200,6 +201,7 @@ function chooseEventToRouteTo()
 
     totalEventsCount = objectEventCount + warpCount + connectionsCount
     eventIndex = RNG(1) % totalEventsCount
+    debugBuffer:print(string.format("Event %d of %d events\n", eventIndex, totalEventsCount))
     if eventIndex < objectEventCount then
         -- object event
         objectEventIdx = eventIndex
@@ -232,6 +234,39 @@ function chooseEventToRouteTo()
 
         forceRoutableAtTarget = true
         gotPath = calculatePathToTarget()
+    elseif eventIndex < objectEventCount + warpCount + connectionsCount then
+        -- connections
+        connectionIdx = eventIndex - (objectEventCount + warpCount)
+        connectionOffset = connectionsPointer + (connectionSize * connectionIdx)
+        conxDirection = emu:read8(conxPointer)
+        debugBuffer:print(string.format("connectionsPointer loc %x\n", connectionsPointer))
+        debugBuffer:print(string.format("Routing to connection %d in direction %s\n", connectionIdx,
+            connectionDirections[conxDirection]))
+        if conxDirection == 1 then
+            -- pick a random coordinate on the south-edge without a collision bit
+            targetX = RNG(1) % mapWidth
+            targetY = mapHeight - 1
+            calculatePathToTarget()
+        end
+        if conxDirection == 2 then
+            -- pick a random coordinate on the south-edge without a collision bit
+            targetX = RNG(1) % mapWidth
+            targetY = 0
+            calculatePathToTarget()
+        end
+        if conxDirection == 3 then
+            -- pick a random coordinate on the south-edge without a collision bit
+            targetY = RNG(1) % mapHeight
+            targetX = 0
+            calculatePathToTarget()
+        end
+        if conxDirection == 4 then
+            -- pick a random coordinate on the south-edge without a collision bit
+            targetY = RNG(1) % mapHeight
+            targetX = mapWidth
+            calculatePathToTarget()
+        end
+
 
         -- TODO: support BG objects (eg. bedroom PC)
 
@@ -347,7 +382,7 @@ function doMove()
                 zoneFailCount = zoneFailCount - 1
                 needNewTarget = true
             else nextPathElement = table.remove(path, 1) end
-            table.insert(possKeys, RNG(1) % 8)
+            table.insert(possKeys, RNG(1) % 4)
             -- nextKey = RNG(1) % 5
         end
         nextKey = possKeys[RNG(1) % #possKeys + 1]
@@ -573,7 +608,9 @@ function calculatePathToTarget()
 
     -- update pathfind data to make it possible to route to this tile
     -- eg so player can always walk to a warp point
+
     if (forceRoutableAtTarget) then
+        oldCollisionValue = map[targetX][targetY]
         map[targetX][targetY] = true
     end
 
@@ -584,11 +621,14 @@ function calculatePathToTarget()
     debugBuffer:print(string.format("finishing at %s\n", finish))
     debugBuffer:print(string.format("path %s\n", i, path))
     if (path == nil) then return false end
+    -- always pop the first step of the path as it causes a lot of backtracking after warps
+    table.remove(path, 1)
     for i = 1, #path do
         debugBuffer:print(string.format("path element %d: %s\n", i, path[i]))
     end
     nextPathElement = table.remove(path, 1)
     gotTargetNeedPath = false
+    if (forceRoutableAtTarget) then map[targetX][targetY] = oldCollisionValue end
     forceRoutableAtTarget = false
     return true
 

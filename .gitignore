@@ -1,3 +1,7 @@
+heap.lua
+luafinding.lua
+vector.lua
+
 # Compiled Lua sources
 luac.out
 
