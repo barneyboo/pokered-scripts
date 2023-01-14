@@ -23,7 +23,7 @@ function setupBuffer()
     tileMapBuffer = console:createBuffer("Map")
     pathfindBuffer = console:createBuffer("Pathfinder")
     debugBuffer = console:createBuffer("Debug")
-    debugBuffer:setSize(100, 100)
+    debugBuffer:setSize(100, 80)
     tileMapBuffer:setSize(100, 100)
     pathfindBuffer:setSize(100, 100)
     doMove()
@@ -140,6 +140,13 @@ map_lookup = {
     "Power Plant"
 }
 
+-- get the metatiles for this map and identify which ones are water
+-- mark these as collisions to avoid trying to walk over them
+-- TODO: detect if got Surf before forcing these to be collision tiles
+-- function setWaterCollisions()
+
+-- end
+
 ---
 MapHeaderLoc = 0x02036DFC
 MapEventsPointerLoc = MapHeaderLoc + 0x04
@@ -148,7 +155,6 @@ kantoMapSections = 0x58
 function getCurrentLocationName()
     regionMapSecId = emu:read8(MapHeaderLoc + 0x14) - kantoMapSections
 
-    debugBuffer:print(string.format("Region map sec ID: %x\n", regionMapSecId))
     status_file:seek("set", 0)
     status_file:write("                                        ")
     status_file:seek("set", 0)
@@ -222,7 +228,8 @@ function chooseEventToRouteTo()
         jitterY = (RNG(1) % 3) - 1
         targetX = objEventX + jitterX
         targetY = objEventY + jitterY
-        debugBuffer:print(string.format(">> Routing to object event %d at %d,%d\n", objectEventIdx, objEventX, objEventY))
+        debugBuffer:print(string.format("🙋 >> Routing to object event %d at %d,%d\n", objectEventIdx,
+            objEventX, objEventY))
         calculatePathToTarget()
     elseif eventIndex < objectEventCount + warpCount then
         -- warp event
@@ -239,7 +246,7 @@ function chooseEventToRouteTo()
 
 
         -- debugBuffer:print(string.format("Warp pointer at %x\n", warpEventOffset))
-        debugBuffer:print(string.format(">> Routing to warp event %d at %d,%d\n", warpEventIdx, warpX, warpY))
+        debugBuffer:print(string.format("🚪 >> Routing to warp event %d at %d,%d\n", warpEventIdx, warpX, warpY))
 
         forceRoutableAtTarget = true
         gotPath = calculatePathToTarget()
@@ -251,7 +258,7 @@ function chooseEventToRouteTo()
         connectionOffset = connectionListPointer + (connectionSize * connectionIdx)
         conxDirection = emu:read8(connectionOffset)
         -- debugBuffer:print(string.format("conxDirection %x with val %x \n", connectionIdx, conxDirection))
-        debugBuffer:print(string.format(">> Routing to connection %d in direction %s\n", connectionIdx,
+        debugBuffer:print(string.format("🗺️ >> Routing to connection %d in direction %s\n", connectionIdx,
             connectionDirections[conxDirection]))
         if conxDirection == 1 then
             -- pick a random coordinate on the south-edge without a collision bit
@@ -290,7 +297,7 @@ function chooseEventToRouteTo()
         jitterY = (RNG(1) % 3) - 1
         targetX = bgX + jitterX
         targetY = bgY + jitterY
-        debugBuffer:print(string.format(">> Routing to BG event %d at %d,%d\n", bgIndex,
+        debugBuffer:print(string.format("🪧 >> Routing to BG event %d at %d,%d\n", bgIndex,
             bgX, bgY))
         forceRoutableAtTarget = true
         calculatePathToTarget()
@@ -305,7 +312,7 @@ function chooseEventToRouteTo()
         jitterY = (RNG(1) % 3) - 1
         targetX = coordX + jitterX
         targetY = coordY + jitterY
-        debugBuffer:print(string.format(">> Routing to co-ord event %d at %d,%d\n", coordIndex,
+        debugBuffer:print(string.format("📍 >> Routing to co-ord event %d at %d,%d\n", coordIndex,
             coordX, coordY))
         calculatePathToTarget()
 
@@ -669,12 +676,15 @@ function calculatePathToTarget()
     path = Luafinding(start, finish, map):GetPath()
     debugBuffer:print(string.format("starting at %s\n", start))
     debugBuffer:print(string.format("finishing at %s\n", finish))
-    debugBuffer:print(string.format("path %s\n", i, path))
-    if (path == nil) then return false end
+    -- debugBuffer:print(string.format("path %s\n", i, path))
+    if (path == nil) then
+        debugBuffer:print(string.format("⛔️ Failed to route path\n"))
+        return false
+    end
     -- always pop the first step of the path as it causes a lot of backtracking after warps
     table.remove(path, 1)
     for i = 1, #path do
-        debugBuffer:print(string.format("path element %d: %s\n", i, path[i]))
+        debugBuffer:print(string.format("Path step %d: %s\n", i, path[i]))
     end
     nextPathElement = table.remove(path, 1)
     gotTargetNeedPath = false
@@ -742,7 +752,7 @@ function cameraLog()
 
     if mapWidth ~= lastMapWidth or mapHeight ~= lastMapHeight then
         -- TODO: fix to only set targets in routable areas
-        debugBuffer:print(string.format("=== Map transition! ===\n"))
+        debugBuffer:print(string.format("🛬 === Map transition! ===\n"))
         getCurrentLocationName()
         nextPathElement = nil
         if isMapEventsFollow then
