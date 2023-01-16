@@ -230,7 +230,7 @@ function addObjectsToCollisionMap()
         objEventY = emu:read8(objectEventOffset + 6) + 7
         pathfindBuffer:moveCursor(objEventX, objEventY)
         pathfindBuffer:print("1")
-        map[objEventX][objEventY] = 1
+        map[objEventX][objEventY] = false
         debugBuffer:print(string.format("🧱 Adding object collision %d at %d,%d\n", objectEventIdx,
             objEventX, objEventY))
     end
@@ -335,25 +335,33 @@ function chooseEventToRouteTo()
             connectionDirections[conxDirection]))
         if conxDirection == 1 then
             -- pick a random coordinate on the south-edge without a collision bit
-            targetX = RNG(1) % mapWidth
+            repeat
+                targetX = RNG(1) % mapWidth
+            until (map[targetX][mapHeight - 1] == true)
             targetY = mapHeight - 1
             calculatePathToTarget()
         end
         if conxDirection == 2 then
             -- pick a random coordinate on the south-edge without a collision bit
-            targetX = RNG(1) % mapWidth
+            repeat
+                targetX = RNG(1) % mapWidth
+            until (map[targetX][0] == true)
             targetY = 0
             calculatePathToTarget()
         end
         if conxDirection == 3 then
             -- pick a random coordinate on the south-edge without a collision bit
-            targetY = RNG(1) % mapHeight
+            repeat
+                targetY = RNG(1) % mapHeight
+            until (map[0][targetY] == true)
             targetX = 0
             calculatePathToTarget()
         end
         if conxDirection == 4 then
             -- pick a random coordinate on the south-edge without a collision bit
-            targetY = RNG(1) % mapHeight
+            repeat
+                targetY = RNG(1) % mapHeight
+            until (map[mapWidth - 1][targetY] == true)
             targetX = mapWidth - 1
             calculatePathToTarget()
         end
@@ -797,6 +805,13 @@ function cameraLog()
     if stuckCount > stuckLimit then
         debugBuffer:print("❌ Stuck trying to reach target, requesting new one.\n")
         needNewTarget = true
+        possKeys = {}
+        table.insert(possKeys, RNG(1) % 4)
+        table.insert(possKeys, 0) -- press A, to try interact with target
+        nextKey = possKeys[RNG(1) % #possKeys + 1]
+        emu:addKey(nextKey)
+
+
         -- else
         --     needNewTarget = false
     end

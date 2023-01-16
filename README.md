@@ -24,3 +24,6 @@ Uses [this fork of luafinding](https://github.com/barneyboo/Luafinding) for bot 
 - [ ] send status updates via websockets
 - [ ] redirect logging to consume outside of mGBA
 - [ ] stop trying to walk on water
+- [ ] disable button bashing during evolution
+- [ ] on map load, add a random item ball at a random location
+- [x] add objects to collision map (eg. trainers, signs, etc.)
