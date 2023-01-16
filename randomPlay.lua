@@ -1,8 +1,55 @@
 urand            = assert(io.open('/dev/urandom', 'rb'))
 rand             = assert(io.open('/dev/random', 'rb'))
-status_file      = io.open("/Users/roo/dev/pokemon/lua/status_file.txt", "w")
 local Vector     = require("vector")
 local Luafinding = require("luafinding")
+statusSocket     = nil
+
+function stopSocket()
+    if not statusSocket then return end
+    console:log("Socket Test: Shutting down")
+    statusSocket:close()
+    statusSocket = nil
+end
+
+function socketError(err)
+    console:error("Socket Test Error: " .. err)
+    stopSocket()
+end
+
+function socketReceived()
+    while true do
+        local p, err = statusSocket:receive(1024)
+        if p then
+            console:log("Socket Test Received: " .. p:match("^(.-)%s*$"))
+        else
+            if err ~= socket.ERRORS.AGAIN then
+                console:error("Socket Test Error: " .. err)
+                stopSocket()
+            end
+            return
+        end
+    end
+end
+
+function sendMessage(messageType, content)
+    if statusSocket then
+        statusSocket:send(messageType .. "||" .. content .. "\n")
+    end
+end
+
+function startSocket()
+    console:log("Socket Test: Connecting to 127.0.0.1:8888...")
+    statusSocket = socket.tcp()
+    statusSocket:add("received", socketReceived)
+    statusSocket:add("error", socketError)
+    if statusSocket:connect("127.0.0.1", 8888) then
+        console:log("Socket Test: Connected")
+        lastkeys = nil
+    else
+        console:log("Socket Test: Failed to connect")
+        stopSocket()
+    end
+end
 
 function RNG(b, m, r)
     b = b or 4
@@ -159,18 +206,39 @@ MapConnectionsPointerLoc = MapHeaderLoc + 0x0C
 kantoMapSections = 0x58
 function getCurrentLocationName()
     regionMapSecId = emu:read8(MapHeaderLoc + 0x14) - kantoMapSections
-
-    status_file:seek("set", 0)
-    status_file:write("                                        ")
-    status_file:seek("set", 0)
-    status_file:write(map_lookup[regionMapSecId + 1])
-    status_file:flush()
+    sendMessage("map.name", map_lookup[regionMapSecId + 1])
+    -- status_file:seek("set", 0)
+    -- status_file:write("                                        ")
+    -- status_file:seek("set", 0)
+    -- status_file:write(map_lookup[regionMapSecId + 1])
+    -- status_file:flush()
 end
 
 gotTargetNeedPath = false
 needNewEventTarget = false
 connectionDirections = { 'south', 'north', 'west', 'east' }
 forceRoutableAtTarget = false
+
+function addObjectsToCollisionMap()
+    mapEventsPointer = emu:read32(MapEventsPointerLoc)
+    objectEventCount = emu:read8(mapEventsPointer)
+    objectEventsPointer = emu:read32(mapEventsPointer + 0x04)
+    objEventSize = 24
+    for objectEventIdx = 0, objectEventCount do
+        objectEventOffset = objectEventsPointer + (objEventSize * objectEventIdx)
+        objEventX = emu:read8(objectEventOffset + 4) + 7
+        objEventY = emu:read8(objectEventOffset + 6) + 7
+        pathfindBuffer:moveCursor(objEventX, objEventY)
+        pathfindBuffer:print("1")
+        map[objEventX][objEventY] = 1
+        debugBuffer:print(string.format("🧱 Adding object collision %d at %d,%d\n", objectEventIdx,
+            objEventX, objEventY))
+    end
+
+
+
+end
+
 function chooseEventToRouteTo()
     -- for the current map
     -- enumerate all the connections, object events, and warp events (see MapEvents)
@@ -229,8 +297,8 @@ function chooseEventToRouteTo()
         objEventX = emu:read8(objectEventOffset + 4) + 7
         objEventY = emu:read8(objectEventOffset + 6) + 7
 
-        jitterX = (RNG(1) % 3) - 1
-        jitterY = (RNG(1) % 3) - 1
+        jitterX = (RNG(1) % 5) - 2
+        jitterY = (RNG(1) % 5) - 2
         targetX = objEventX + jitterX
         targetY = objEventY + jitterY
         debugBuffer:print(string.format("🙋 >> Routing to object event %d at %d,%d\n", objectEventIdx,
@@ -286,7 +354,7 @@ function chooseEventToRouteTo()
         if conxDirection == 4 then
             -- pick a random coordinate on the south-edge without a collision bit
             targetY = RNG(1) % mapHeight
-            targetX = mapWidth
+            targetX = mapWidth - 1
             calculatePathToTarget()
         end
 
@@ -439,6 +507,7 @@ function doMove()
                 needNewTarget = true
             else nextPathElement = table.remove(path, 1) end
             table.insert(possKeys, RNG(1) % 4)
+            table.insert(possKeys, 0) -- press A, to try interact with target
             -- nextKey = RNG(1) % 5
         end
         nextKey = possKeys[RNG(1) % #possKeys + 1]
@@ -652,6 +721,7 @@ function getMapCollisions()
             -- pathfindBuffer:print(string.format("%s", mapLayout[(x*mapWidth)+(y*mapHeight)]))
         end
     end
+    addObjectsToCollisionMap()
 end
 
 path = nil
@@ -873,8 +943,10 @@ function cameraLog()
 end
 
 callbacks:add("start", setupBuffer)
+callbacks:add("start", startSocket)
 callbacks:add("frame", doMove)
 callbacks:add("frame", cameraLog)
 if emu then
     setupBuffer()
+    startSocket()
 end
