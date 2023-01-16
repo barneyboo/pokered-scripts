@@ -337,32 +337,34 @@ function chooseEventToRouteTo()
             -- pick a random coordinate on the south-edge without a collision bit
             repeat
                 targetX = RNG(1) % mapWidth
-            until (map[targetX][mapHeight - 1] == true)
-            targetY = mapHeight - 1
+                targetY = mapHeight - (RNG(1) % 7) - 1
+            until (map[targetX][targetY] == true)
+
             calculatePathToTarget()
         end
         if conxDirection == 2 then
             -- pick a random coordinate on the south-edge without a collision bit
             repeat
                 targetX = RNG(1) % mapWidth
-            until (map[targetX][0] == true)
-            targetY = 0
+                targetY = (RNG(1) % 7)
+            until (map[targetX][targetY] == true)
             calculatePathToTarget()
         end
         if conxDirection == 3 then
             -- pick a random coordinate on the south-edge without a collision bit
             repeat
+                targetX = (RNG(1) % 7)
                 targetY = RNG(1) % mapHeight
-            until (map[0][targetY] == true)
-            targetX = 0
+            until (map[targetX][targetY] == true)
+
             calculatePathToTarget()
         end
         if conxDirection == 4 then
             -- pick a random coordinate on the south-edge without a collision bit
             repeat
+                targetX = mapWidth - (RNG(1) % 7) - 1
                 targetY = RNG(1) % mapHeight
-            until (map[mapWidth - 1][targetY] == true)
-            targetX = mapWidth - 1
+            until (map[targetX][targetY] == true)
             calculatePathToTarget()
         end
 
