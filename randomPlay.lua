@@ -4,6 +4,27 @@ local Vector     = require("vector")
 local Luafinding = require("luafinding")
 statusSocket     = nil
 
+charmap = { [0] =
+" ", "À", "Á", "Â", "Ç", "È", "É", "Ê", "Ë", "Ì", "こ", "Î", "Ï", "Ò", "Ó", "Ô",
+    "Œ", "Ù", "Ú", "Û", "Ñ", "ß", "à", "á", "ね", "ç", "è", "é", "ê", "ë", "ì", "ま",
+    "î", "ï", "ò", "ó", "ô", "œ", "ù", "ú", "û", "ñ", "º", "ª", "�", "&", "+", "あ",
+    "ぃ", "ぅ", "ぇ", "ぉ", "v", "=", "ょ", "が", "ぎ", "ぐ", "げ", "ご", "ざ", "じ", "ず", "ぜ",
+    "ぞ", "だ", "ぢ", "づ", "で", "ど", "ば", "び", "ぶ", "べ", "ぼ", "ぱ", "ぴ", "ぷ", "ぺ", "ぽ",
+    "っ", "¿", "¡", "P\u{200d}k", "M\u{200d}n", "P\u{200d}o", "K\u{200d}é", "�", "�", "�", "Í", "%", "(", ")",
+    "セ", "ソ",
+    "タ", "チ", "ツ", "テ", "ト", "ナ", "ニ", "ヌ", "â", "ノ", "ハ", "ヒ", "フ", "ヘ", "ホ", "í",
+    "ミ", "ム", "メ", "モ", "ヤ", "ユ", "ヨ", "ラ", "リ", "⬆", "⬇", "⬅", "➡", "ヲ", "ン", "ァ",
+    "ィ", "ゥ", "ェ", "ォ", "ャ", "ュ", "ョ", "ガ", "ギ", "グ", "ゲ", "ゴ", "ザ", "ジ", "ズ", "ゼ",
+    "ゾ", "ダ", "ヂ", "ヅ", "デ", "ド", "バ", "ビ", "ブ", "ベ", "ボ", "パ", "ピ", "プ", "ペ", "ポ",
+    "ッ", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "!", "?", ".", "-", "・",
+    "…", "“", "”", "‘", "’", "♂", "♀", "$", ",", "×", "/", "A", "B", "C", "D", "E",
+    "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U",
+    "V", "W", "X", "Y", "Z", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k",
+    "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "▶",
+    ":", "Ä", "Ö", "Ü", "ä", "ö", "ü", "⬆", "⬇", "⬅", "�", "�", "�", "�", "�", "" }
+
+
+
 function stopSocket()
     if not statusSocket then return end
     console:log("Socket Test: Shutting down")
@@ -211,6 +232,99 @@ function getCurrentLocationName()
     sendMessage("map.name", map_lookup[regionMapSecId + 1])
 end
 
+savePointer2Loc = 0x0300500C
+function getPlayTime()
+    savePointer = emu:read32(savePointer2Loc)
+    playHours = emu:read16(savePointer + 0x00E)
+    playMins = emu:read8(savePointer + 0x010)
+    totalDays = math.floor(playHours / 24)
+    totalHours = playHours % 24
+    -- debugBuffer:print(string.format("time: %d,%d,%d", totalDays, totalHours, playMins))
+    sendMessage('playtime.playtime', string.format("%d,%d,%d", totalDays, totalHours, playMins))
+end
+
+function getMoney()
+    saveBlockPointer = emu:read32(SaveBlockLoc)
+    save2Pointer = emu:read32(savePointer2Loc)
+    moneyPtr = emu:read32(saveBlockPointer + 0x0290)
+    encryptionKey = emu:read32(save2Pointer + 0xF20)
+    money = moneyPtr ~ encryptionKey
+    -- debugBuffer:print(string.format('money ptr: %d, enc key %x, output money %d', moneyPtr, encryptionKey, money))
+    sendMessage('money.money', money)
+end
+
+-- see pokemon.c->GetMonData() and GetBoxMonData() and PokemonSubstruct
+function getPartyInfo()
+    saveBlockPointer = emu:read32(SaveBlockLoc)
+    partyPokemonLoc = saveBlockPointer + 0x0038 -- at root of first BoxPokemon (0x3005040)
+    pokemonStructSize = 0x64
+    monMinusBoxStructSize = 0x14
+    boxMonStructSize = 0x50
+
+    currentMonPointer = partyPokemonLoc
+
+    -- get data for decrypting pokemon info
+    -- info about this bullshit here: https://bulbapedia.bulbagarden.net/wiki/Pokémon_data_substructures_(Generation_III)
+    personality = emu:read32(currentMonPointer)
+    otId = emu:read32(currentMonPointer + 4)
+    encKey = personality ~ otId
+    GAMEorder = personality % 24
+    -- testGAMEorder = 1-- MGEA
+    local substructSelector = {
+        [0] = { 0, 1, 2, 3 },
+        [1] = { 0, 1, 3, 2 },
+        [2] = { 0, 2, 1, 3 },
+        [3] = { 0, 3, 1, 2 },
+        [4] = { 0, 2, 3, 1 },
+        [5] = { 0, 3, 2, 1 },
+        [6] = { 1, 0, 2, 3 },
+        [7] = { 1, 0, 3, 2 },
+        [8] = { 2, 0, 1, 3 },
+        [9] = { 3, 0, 1, 2 },
+        [10] = { 2, 0, 3, 1 },
+        [11] = { 3, 0, 2, 1 },
+        [12] = { 1, 2, 0, 3 },
+        [13] = { 1, 3, 0, 2 },
+        [14] = { 2, 1, 0, 3 },
+        [15] = { 3, 1, 0, 2 },
+        [16] = { 2, 3, 0, 1 },
+        [17] = { 3, 2, 0, 1 },
+        [18] = { 1, 2, 3, 0 },
+        [19] = { 1, 3, 2, 0 },
+        [20] = { 2, 1, 3, 0 },
+        [21] = { 3, 1, 2, 0 },
+        [22] = { 2, 3, 1, 0 },
+        [23] = { 3, 2, 1, 0 }
+    }
+
+    local subOrder = substructSelector[GAMEorder]
+
+
+    rawDataLocation = currentMonPointer + 32 -- 32 bytes before data starts
+
+    -- growthLoc = rawDataLocation -- Growth section is first (each is 12 bytes)
+    growthLoc = rawDataLocation + (subOrder[1] * 12)
+    -- need to XOR the substruct in 3*4 byte chunks
+    decrypted = {}
+    chunkPointer = 0
+    encryptedChunk = emu:read32(growthLoc + (chunkPointer * 4))
+    decryptedChunk = (encryptedChunk ~ encKey)
+    species = decryptedChunk
+
+    nickname = emu:readRange(currentMonPointer + 8, 10)
+    decodedNickname = ""
+    for i = 1, #nickname do
+        nickChar = string.byte(string.sub(nickname, i, i))
+        decNickChar = charmap[nickChar]
+        decodedNickname = decodedNickname .. decNickChar
+    end
+    level = emu:read8(currentMonPointer + boxMonStructSize + 4)
+    hp = emu:read16(currentMonPointer + boxMonStructSize + 6)
+    maxHp = emu:read16(currentMonPointer + boxMonStructSize + 8)
+    sendMessage("party.0", string.format("%d|%s|%d|%d|%d", species, decodedNickname, hp, maxHp, level))
+
+end
+
 -- -- generates a sentence describing the bot's current intention
 -- function generateNarrativeForTarget(targetType, offset)
 --     if (targetType == "warp") then
@@ -307,6 +421,7 @@ function chooseEventToRouteTo()
         targetY = objEventY + jitterY
         debugBuffer:print(string.format("🙋 >> Routing to object event %d at %d,%d\n", objectEventIdx,
             objEventX, objEventY))
+        forceRoutableAtTarget = true
         calculatePathToTarget()
     elseif eventIndex < objectEventCount + warpCount then
         -- warp event
@@ -790,21 +905,55 @@ end
 
 path = nil
 
-pathfinderIsOpen = function(pos)
+--lastPathFindPos = nil
+pathfindAttemptCount = 0
+pathfindLimit = 10000
+pathfinderIsOpen = function(currentPathPos, pos)
+    pathfindAttemptCount = pathfindAttemptCount + 1
+    if pathfindAttemptCount > pathfindLimit then
+        debugBuffer:print(string.format("Failing to route in a reasonable time. Forcing to cancel\n"))
+        return false
+    end
     --return map[pos.x][pos.y]
     -- debugBuffer:print(string.format("pathfinderIsOpen %d %d\n", pos.x, pos.y))
-    if (map[pos.x][pos.y] == true) then return true end
+    --currentPathPos = lastPathFindPos
+    --if (currentPathPos == nil) then currentPathPos = pos end
+    --lastPathFindPos = pos
+    if (map[pos.x] == nil or map[pos.x][pos.y] == nil) then return false end
+    if (map[pos.x][pos.y] == true) then
+        if (metatileMap[pos.x] ~= nil and metatileMap[pos.x][pos.y] ~= nil) then
+            -- if this is a water tile, treat as collision
+            -- TODO: detect if got Surf
+            metatileBehaviour = metatileMap[pos.x][pos.y]
+            if (metatileBehaviour >= 0x10 and metatileBehaviour <= 0x17) then
+                return false
+            end
+        end
+        return true
+    end
     if (metatileMap[pos.x] == nil or metatileMap[pos.x][pos.y] == nil) then return false end
     if (map[pos.x][pos.y] == false) then
         metatileBehaviour = metatileMap[pos.x][pos.y]
         if (metatileBehaviour == 0x3B) then -- MB_JUMP_SOUTH
-            return (savePosY + 7 < pos.y) -- if player is above this tile, they can jump down it
+            -- debugBuffer:print(string.format("%s: path find step %d,%d can jump down ledge at %d %d?\n",
+            --     pathfindAttemptCount, currentPathPos.x,
+            --     currentPathPos.y, pos.x, pos.y))
+            return (currentPathPos.y < pos.y) -- if player is above this tile, they can jump down it
         elseif (metatileBehaviour == 0x3A) then -- MB_JUMP_NORTH
-            return (savePosY + 7 > pos.y)
+            -- debugBuffer:print(string.format("%s: path find step %d,%d can jump up ledge at %d %d?\n",
+            --     pathfindAttemptCount, currentPathPos.x,
+            --     currentPathPos.y, pos.x, pos.y))
+            return (currentPathPos.y > pos.y)
         elseif (metatileBehaviour == 0x38) then -- MB_JUMP_EAST
-            return (savePosX + 7 < pos.x)
+            -- debugBuffer:print(string.format("%s: path find step %d,%d can jump east ledge at %d %d?\n",
+            --     pathfindAttemptCount, currentPathPos.x,
+            --     currentPathPos.y, pos.x, pos.y))
+            return (currentPathPos.x < pos.x)
         elseif (metatileBehaviour == 0x39) then -- MB_JUMP_WEST
-            return (savePosX + 7 > pos.x)
+            -- debugBuffer:print(string.format("%s: path find step %d,%d can jump left ledge at %d %d?\n",
+            --     pathfindAttemptCount, currentPathPos.x,
+            --     currentPathPos.y, pos.x, pos.y))
+            return (currentPathPos.x > pos.x)
 
         end
         return false
@@ -812,6 +961,7 @@ pathfinderIsOpen = function(pos)
 end
 
 function calculatePathToTarget()
+    pathfindAttemptCount = 0
     -- debugBuffer:print(string.format("got map %s\n", #map))
     if #map == 0 and isMapEventsFollow then
         gotTargetNeedPath = true
@@ -833,6 +983,7 @@ function calculatePathToTarget()
         return
     end
 
+    -- lastPathFindPos = nil
     start = Vector(savePosX + 7, savePosY + 7)
     finish = Vector(targetX, targetY)
     -- path = Luafinding(start, finish, map):GetPath()
@@ -845,11 +996,14 @@ function calculatePathToTarget()
         debugBuffer:print(string.format("⛔️ Failed to route path\n"))
         return false
     end
+
     -- always pop the first step of the path as it causes a lot of backtracking after warps
     table.remove(path, 1)
     for i = 1, #path do
         debugBuffer:print(string.format("Path step %d: %s\n", i, path[i]))
     end
+    debugBuffer:print(string.format("Pathed after %d metatile tests\n", pathfindAttemptCount))
+    getPlayTime()
     nextPathElement = table.remove(path, 1)
     gotTargetNeedPath = false
     if (forceRoutableAtTarget) then map[targetX][targetY] = oldCollisionValue end
@@ -890,6 +1044,7 @@ function cameraLog()
         table.insert(possKeys, 0) -- press A, to try interact with target
         nextKey = possKeys[RNG(1) % #possKeys + 1]
         emu:addKey(nextKey)
+        getMoney()
 
 
         -- else
@@ -926,6 +1081,8 @@ function cameraLog()
         debugBuffer:print(string.format("🛬 === Map transition! ===\n"))
         gotTargetNeedPath = false
         getCurrentLocationName()
+        getPartyInfo()
+
         nextPathElement = nil
 
         stuckCount = 0
