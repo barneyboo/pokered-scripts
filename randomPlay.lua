@@ -69,10 +69,12 @@ function setupBuffer()
     cameraBuffer = console:createBuffer("Camera")
     tileMapBuffer = console:createBuffer("Map")
     pathfindBuffer = console:createBuffer("Pathfinder")
+    metatileBuffer = console:createBuffer("Metatile")
     debugBuffer = console:createBuffer("Debug")
     debugBuffer:setSize(100, 80)
     tileMapBuffer:setSize(100, 100)
     pathfindBuffer:setSize(100, 100)
+    metatileBuffer:setSize(200, 200)
     doMove()
 end
 
@@ -121,7 +123,7 @@ LockFieldLoc = 0x03000F9C
 isNaive = false
 isFollowTarget = true
 stuckCount = 0
-stuckLimit = 250
+stuckLimit = 150
 zoneFailLimit = 10
 zoneFailCount = 0
 isSimplePathFollow = false
@@ -200,19 +202,21 @@ map_lookup = {
 -- end
 
 ---
-MapHeaderLoc = 0x02036DFC
+MapHeaderLoc = 0x02036DFC -- location of gMapHeader MapHeader obj
 MapEventsPointerLoc = MapHeaderLoc + 0x04
 MapConnectionsPointerLoc = MapHeaderLoc + 0x0C
 kantoMapSections = 0x58
 function getCurrentLocationName()
     regionMapSecId = emu:read8(MapHeaderLoc + 0x14) - kantoMapSections
     sendMessage("map.name", map_lookup[regionMapSecId + 1])
-    -- status_file:seek("set", 0)
-    -- status_file:write("                                        ")
-    -- status_file:seek("set", 0)
-    -- status_file:write(map_lookup[regionMapSecId + 1])
-    -- status_file:flush()
 end
+
+-- -- generates a sentence describing the bot's current intention
+-- function generateNarrativeForTarget(targetType, offset)
+--     if (targetType == "warp") then
+
+--     end
+-- end
 
 gotTargetNeedPath = false
 needNewEventTarget = false
@@ -654,6 +658,7 @@ collisionMap = {}
 
 
 map = {}
+metatileMap = {}
 -- GetMapGridBlockAt and MapGridGetCollisionAt in fieldmap.c have examples of working with map data
 function getMapCollisions()
     collisionMap = {}
@@ -664,6 +669,18 @@ function getMapCollisions()
 
     -- mapPointer = 0x1FFFFF + emu:read16(MapLayoutData)
     mapPointer = emu:read32(MapLayoutData)
+    mapLayPointer = emu:read32(MapHeaderLoc) -- memory location of MapLayout obj
+    -- mapHeader = emu:read32(mapLayPointer)
+    mapHeader = mapLayPointer
+    primaryTilesetPointerLoc = emu:read32(mapHeader + 0x10);
+    secondaryTilesetPointerLoc = emu:read32(mapHeader + 0x14);
+    primaryTilesetPointer = primaryTilesetPointerLoc
+    secondaryTilesetPointer = secondaryTilesetPointerLoc
+    -- primaryTilesetPointer = emu:read32(primaryTilesetPointerLoc);
+    -- secondaryTilesetPointer = emu:read32(secondaryTilesetPointerLoc);
+    primaryMetatileAttribsLoc = emu:read32(primaryTilesetPointer + 0x14);
+    secondaryMetatileAttribsLoc = emu:read32(secondaryTilesetPointer + 0x14);
+    -- debugBuffer:print(string.format("mapLayPointer %x\n", mapLayPointer));
     -- debugBuffer:print(string.format("map pointer is at %x\n", mapPointer))
     -- debugBuffer:print(string.format("map ends at %x\n", mapPointer+(got)))
 
@@ -691,9 +708,11 @@ function getMapCollisions()
     pathfindBuffer:clear()
     pathfindBuffer:setSize(100, 100)
     map = {}
+    metatileMap = {}
     -- debugBuffer:print(string.format("%x",mapLayout))
     for x = 0, mapWidth - 1 do
         map[x] = {}
+        metatileMap[x] = {}
         for y = 0, mapHeight - 1 do
             -- tile_id = (x*mapWidth)+(y*mapHeight)
             tile_id = x + mapWidth * y
@@ -703,11 +722,46 @@ function getMapCollisions()
             -- debugBuffer:print(string.format("looking at tile %x\n", mapPointer+(tile_id*2)))
             mapTile = emu:read16(mapPointer + (tile_id * 2))
             pathfindBuffer:moveCursor(x, y)
+            metatileBuffer:moveCursor(x * 2, y * 2)
             -- pathfindBuffer:print("o")
 
             -- is there collision data here?
             -- debugBuffer:print(string.format("tile: %d,%d, collision shifted: %x, is collision? %x\n",x,y,mapTile>>10,(mapTile & 0x0C00) >> 10))
             mapTileCollision = (mapTile & 0x0C00) >> 10
+
+            -- if this is a ledge, set the permitted direction of travel
+            -- so the pathfinder can conditionally determine if it can reach it
+            metaTileId = mapTile & 0x03FF;
+            if (metaTileId < 640) then
+                -- debugBuffer:print("Primary tileset \n")
+                metatileAttribsLoc = primaryMetatileAttribsLoc
+            else
+                -- debugBuffer:print("Secondary tileset \n")
+                metatileAttribsLoc = secondaryMetatileAttribsLoc
+                metaTileId = metaTileId - 640
+            end
+            if (metaTileId < 0x03FF) then
+                -- debugBuffer:print(string.format("metatileAttribsLoc %x\n", metatileAttribsLoc));
+
+                metaAttrib = emu:read32(metatileAttribsLoc + (metaTileId * 4));
+                -- debugBuffer:print(string.format("metatileAttribsLoc offset %x\n", metatileAttribsLoc + (4 * metaTileId)));
+                behaviorAttrib = metaAttrib & 0x000001ff >> 0;
+                metatileMap[x][y] = behaviorAttrib
+
+                -- metatileBuffer:print(string.format("%x", behaviorAttrib))
+
+            else metatileMap[x][y] = 0
+            end
+
+            -- eg. got metaAttrib 1c181c18 tile id 1d for 38,93
+            -- behaviourAttribute = 0;
+            -- jumpSouthBehaviour = 0x3B;
+
+
+
+
+
+
 
 
             -- if the tile is water, we also treat that as collision
@@ -735,6 +789,28 @@ function getMapCollisions()
 end
 
 path = nil
+
+pathfinderIsOpen = function(pos)
+    --return map[pos.x][pos.y]
+    -- debugBuffer:print(string.format("pathfinderIsOpen %d %d\n", pos.x, pos.y))
+    if (map[pos.x][pos.y] == true) then return true end
+    if (metatileMap[pos.x] == nil or metatileMap[pos.x][pos.y] == nil) then return false end
+    if (map[pos.x][pos.y] == false) then
+        metatileBehaviour = metatileMap[pos.x][pos.y]
+        if (metatileBehaviour == 0x3B) then -- MB_JUMP_SOUTH
+            return (savePosY + 7 < pos.y) -- if player is above this tile, they can jump down it
+        elseif (metatileBehaviour == 0x3A) then -- MB_JUMP_NORTH
+            return (savePosY + 7 > pos.y)
+        elseif (metatileBehaviour == 0x38) then -- MB_JUMP_EAST
+            return (savePosX + 7 < pos.x)
+        elseif (metatileBehaviour == 0x39) then -- MB_JUMP_WEST
+            return (savePosX + 7 > pos.x)
+
+        end
+        return false
+    end
+end
+
 function calculatePathToTarget()
     -- debugBuffer:print(string.format("got map %s\n", #map))
     if #map == 0 and isMapEventsFollow then
@@ -759,7 +835,9 @@ function calculatePathToTarget()
 
     start = Vector(savePosX + 7, savePosY + 7)
     finish = Vector(targetX, targetY)
-    path = Luafinding(start, finish, map):GetPath()
+    -- path = Luafinding(start, finish, map):GetPath()
+
+    path = Luafinding(start, finish, pathfinderIsOpen):GetPath()
     debugBuffer:print(string.format("starting at %s\n", start))
     debugBuffer:print(string.format("finishing at %s\n", finish))
     -- debugBuffer:print(string.format("path %s\n", i, path))
@@ -846,6 +924,7 @@ function cameraLog()
     if mapWidth ~= lastMapWidth or mapHeight ~= lastMapHeight then
         -- TODO: fix to only set targets in routable areas
         debugBuffer:print(string.format("🛬 === Map transition! ===\n"))
+        gotTargetNeedPath = false
         getCurrentLocationName()
         nextPathElement = nil
 
