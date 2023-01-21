@@ -254,14 +254,17 @@ function getMoney()
 end
 
 -- see pokemon.c->GetMonData() and GetBoxMonData() and PokemonSubstruct
-function getPartyInfo()
+function getPartyInfo(partySlot)
     saveBlockPointer = emu:read32(SaveBlockLoc)
-    partyPokemonLoc = saveBlockPointer + 0x0038 -- at root of first BoxPokemon (0x3005040)
+    -- partyPokemonLoc = saveBlockPointer + 0x0038 -- at root of first BoxPokemon (0x3005040)
+    partyPokemonLoc = 0x02024284
     pokemonStructSize = 0x64
     monMinusBoxStructSize = 0x14
     boxMonStructSize = 0x50
 
-    currentMonPointer = partyPokemonLoc
+    if not partySlot then partySlot = 0 end
+
+    currentMonPointer = partyPokemonLoc + (100 * partySlot)
 
     -- get data for decrypting pokemon info
     -- info about this bullshit here: https://bulbapedia.bulbagarden.net/wiki/Pokémon_data_substructures_(Generation_III)
@@ -298,7 +301,7 @@ function getPartyInfo()
     }
 
     local subOrder = substructSelector[GAMEorder]
-
+    -- debugBuffer:print(string.format("this mon has game order %d, so growth is no. %x", GAMEorder, subOrder[1]))
 
     rawDataLocation = currentMonPointer + 32 -- 32 bytes before data starts
 
@@ -309,19 +312,24 @@ function getPartyInfo()
     chunkPointer = 0
     encryptedChunk = emu:read32(growthLoc + (chunkPointer * 4))
     decryptedChunk = (encryptedChunk ~ encKey)
-    species = decryptedChunk
+    -- debugBuffer:print(string.format("decrypted chunk: %x", decryptedChunk))
+    -- mankey: d0038
+    species = decryptedChunk & 0xFF -- get first two bytes for species id
 
     nickname = emu:readRange(currentMonPointer + 8, 10)
     decodedNickname = ""
+    -- debugBuffer:print(string.format("decoding nickname: "))
     for i = 1, #nickname do
         nickChar = string.byte(string.sub(nickname, i, i))
+        if nickChar == 0xff then break end
+        -- debugBuffer:print(string.format('%x ', nickChar))
         decNickChar = charmap[nickChar]
         decodedNickname = decodedNickname .. decNickChar
     end
     level = emu:read8(currentMonPointer + boxMonStructSize + 4)
     hp = emu:read16(currentMonPointer + boxMonStructSize + 6)
     maxHp = emu:read16(currentMonPointer + boxMonStructSize + 8)
-    sendMessage("party.0", string.format("%d|%s|%d|%d|%d", species, decodedNickname, hp, maxHp, level))
+    sendMessage("party." .. partySlot, string.format("%d|%s|%d|%d|%d", species, decodedNickname, hp, maxHp, level))
 
 end
 
@@ -776,6 +784,7 @@ map = {}
 metatileMap = {}
 -- GetMapGridBlockAt and MapGridGetCollisionAt in fieldmap.c have examples of working with map data
 function getMapCollisions()
+
     collisionMap = {}
     cursorX = 0
     cursorY = 0
@@ -976,12 +985,19 @@ function calculatePathToTarget()
         map[targetX][targetY] = true
     end
 
-    if (map[savePosX + 7][savePosY + 7] == false) then
-        -- if player is on a collision tile, assume we're in the middle of a warp transition and hold off until player has moved
+    if (savePosX > 200 or savePosY > 200) then
+        -- assume we're in the middle of a warp transition and hold off until player has moved
         gotTargetNeedPath = true
         debugBuffer:print(string.format("Pathing has started on a blocked tile, trying again on next frame\n"))
         return
     end
+
+    -- if (map[savePosX + 7][savePosY + 7] == false) then
+    --     -- if player is on a collision tile, assume we're in the middle of a warp transition and hold off until player has moved
+    --     gotTargetNeedPath = true
+    --     debugBuffer:print(string.format("Pathing has started on a blocked tile, trying again on next frame\n"))
+    --     return
+    -- end
 
     -- lastPathFindPos = nil
     start = Vector(savePosX + 7, savePosY + 7)
@@ -1044,7 +1060,14 @@ function cameraLog()
         table.insert(possKeys, 0) -- press A, to try interact with target
         nextKey = possKeys[RNG(1) % #possKeys + 1]
         emu:addKey(nextKey)
-        getMoney()
+        getPartyInfo(0)
+        getPartyInfo(1)
+        getPartyInfo(2)
+        getPartyInfo(3)
+        getPartyInfo(4)
+        getPartyInfo(5)
+
+
 
 
         -- else
@@ -1065,6 +1088,16 @@ function cameraLog()
     if isInBattle > 0 then
         stuckCount = 0
         needNewTarget = false
+        if (RNG(1) == 0x0F) then
+            getPartyInfo(0)
+            getPartyInfo(1)
+            getPartyInfo(2)
+            getPartyInfo(3)
+            getPartyInfo(4)
+            getPartyInfo(5)
+
+        end
+
     end
 
     -- a target was set before pathfinding map was available on a previous frame
@@ -1081,7 +1114,9 @@ function cameraLog()
         debugBuffer:print(string.format("🛬 === Map transition! ===\n"))
         gotTargetNeedPath = false
         getCurrentLocationName()
-        getPartyInfo()
+        getMoney()
+
+
 
         nextPathElement = nil
 
