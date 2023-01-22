@@ -20,10 +20,12 @@ Uses [this fork of luafinding](https://github.com/barneyboo/Luafinding) for bot 
 
 - [ ] total refactor
 - [ ] better logging
+- [ ] narrative logging (eg. history of battles, caught mon, released mon, learned moves etc)
 - [ ] intent logging (eg. "Heading towards OAK'S LAB")
-- [ ] send status updates via websockets
+- [ ] send status updates via sockets
 - [ ] redirect logging to consume outside of mGBA
-- [ ] stop trying to walk on water
-- [ ] disable button bashing during evolution
-- [ ] on map load, add a random item ball at a random location
+- [x] stop trying to walk on water
+- [x] disable button bashing during evolution
 - [x] add objects to collision map (eg. trainers, signs, etc.)
+- [x] better ledge support (pathfinder should use direction of travel to determine if traversable)
+- [ ] try to reconnect to socket if disconnected
