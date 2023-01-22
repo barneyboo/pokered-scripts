@@ -125,6 +125,8 @@ A_TRIGGER = 100
 B_TRIGGER = 114
 START_TRIGGER = 120
 SELECT_TRIGGER = 122
+L_TRIGGER = 132
+R_TRIGGER = 142
 
 table_keys = { "A", "B", "SELECT", "START", "RIGHT", "LEFT", "UP", "DOWN", "R", "L" }
 
@@ -718,6 +720,10 @@ function doMove()
         nextKey = 3
     elseif moveWeight < SELECT_TRIGGER then
         nextKey = 2
+    elseif moveWeight < L_TRIGGER then
+        nextKey = 8
+    elseif moveWeight < R_TRIGGER then
+        nextKey = 9
     else return end
 
     emu:clearKeys(0x3FF)
