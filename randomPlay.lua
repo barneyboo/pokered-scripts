@@ -1567,6 +1567,7 @@ function calculatePathToTarget()
     -- debugBuffer:print(string.format("path %s\n", i, path))
     if (path == nil) then
         debugBuffer:print(string.format("⛔️ Failed to route path\n"))
+        disallowedMapTargets[currentTargetName] = true
         return false
     end
 
