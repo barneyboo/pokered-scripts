@@ -1,8 +1,424 @@
+---@diagnostic disable: lowercase-global
 urand            = assert(io.open('/dev/urandom', 'rb'))
 rand             = assert(io.open('/dev/random', 'rb'))
 local Vector     = require("vector")
 local Luafinding = require("luafinding")
 statusSocket     = nil
+
+speciesNames = {
+    "??????????",
+    "BULBASAUR",
+    "IVYSAUR",
+    "VENUSAUR",
+    "CHARMANDER",
+    "CHARMELEON",
+    "CHARIZARD",
+    "SQUIRTLE",
+    "WARTORTLE",
+    "BLASTOISE",
+    "CATERPIE",
+    "METAPOD",
+    "BUTTERFREE",
+    "WEEDLE",
+    "KAKUNA",
+    "BEEDRILL",
+    "PIDGEY",
+    "PIDGEOTTO",
+    "PIDGEOT",
+    "RATTATA",
+    "RATICATE",
+    "SPEAROW",
+    "FEAROW",
+    "EKANS",
+    "ARBOK",
+    "PIKACHU",
+    "RAICHU",
+    "SANDSHREW",
+    "SANDSLASH",
+    "NIDORAN♀",
+    "NIDORINA",
+    "NIDOQUEEN",
+    "NIDORAN♂",
+    "NIDORINO",
+    "NIDOKING",
+    "CLEFAIRY",
+    "CLEFABLE",
+    "VULPIX",
+    "NINETALES",
+    "JIGGLYPUFF",
+    "WIGGLYTUFF",
+    "ZUBAT",
+    "GOLBAT",
+    "ODDISH",
+    "GLOOM",
+    "VILEPLUME",
+    "PARAS",
+    "PARASECT",
+    "VENONAT",
+    "VENOMOTH",
+    "DIGLETT",
+    "DUGTRIO",
+    "MEOWTH",
+    "PERSIAN",
+    "PSYDUCK",
+    "GOLDUCK",
+    "MANKEY",
+    "PRIMEAPE",
+    "GROWLITHE",
+    "ARCANINE",
+    "POLIWAG",
+    "POLIWHIRL",
+    "POLIWRATH",
+    "ABRA",
+    "KADABRA",
+    "ALAKAZAM",
+    "MACHOP",
+    "MACHOKE",
+    "MACHAMP",
+    "BELLSPROUT",
+    "WEEPINBELL",
+    "VICTREEBEL",
+    "TENTACOOL",
+    "TENTACRUEL",
+    "GEODUDE",
+    "GRAVELER",
+    "GOLEM",
+    "PONYTA",
+    "RAPIDASH",
+    "SLOWPOKE",
+    "SLOWBRO",
+    "MAGNEMITE",
+    "MAGNETON",
+    "FARFETCH'D",
+    "DODUO",
+    "DODRIO",
+    "SEEL",
+    "DEWGONG",
+    "GRIMER",
+    "MUK",
+    "SHELLDER",
+    "CLOYSTER",
+    "GASTLY",
+    "HAUNTER",
+    "GENGAR",
+    "ONIX",
+    "DROWZEE",
+    "HYPNO",
+    "KRABBY",
+    "KINGLER",
+    "VOLTORB",
+    "ELECTRODE",
+    "EXEGGCUTE",
+    "EXEGGUTOR",
+    "CUBONE",
+    "MAROWAK",
+    "HITMONLEE",
+    "HITMONCHAN",
+    "LICKITUNG",
+    "KOFFING",
+    "WEEZING",
+    "RHYHORN",
+    "RHYDON",
+    "CHANSEY",
+    "TANGELA",
+    "KANGASKHAN",
+    "HORSEA",
+    "SEADRA",
+    "GOLDEEN",
+    "SEAKING",
+    "STARYU",
+    "STARMIE",
+    "MR. MIME",
+    "SCYTHER",
+    "JYNX",
+    "ELECTABUZZ",
+    "MAGMAR",
+    "PINSIR",
+    "TAUROS",
+    "MAGIKARP",
+    "GYARADOS",
+    "LAPRAS",
+    "DITTO",
+    "EEVEE",
+    "VAPOREON",
+    "JOLTEON",
+    "FLAREON",
+    "PORYGON",
+    "OMANYTE",
+    "OMASTAR",
+    "KABUTO",
+    "KABUTOPS",
+    "AERODACTYL",
+    "SNORLAX",
+    "ARTICUNO",
+    "ZAPDOS",
+    "MOLTRES",
+    "DRATINI",
+    "DRAGONAIR",
+    "DRAGONITE",
+    "MEWTWO",
+    "MEW",
+    "CHIKORITA",
+    "BAYLEEF",
+    "MEGANIUM",
+    "CYNDAQUIL",
+    "QUILAVA",
+    "TYPHLOSION",
+    "TOTODILE",
+    "CROCONAW",
+    "FERALIGATR",
+    "SENTRET",
+    "FURRET",
+    "HOOTHOOT",
+    "NOCTOWL",
+    "LEDYBA",
+    "LEDIAN",
+    "SPINARAK",
+    "ARIADOS",
+    "CROBAT",
+    "CHINCHOU",
+    "LANTURN",
+    "PICHU",
+    "CLEFFA",
+    "IGGLYBUFF",
+    "TOGEPI",
+    "TOGETIC",
+    "NATU",
+    "XATU",
+    "MAREEP",
+    "FLAAFFY",
+    "AMPHAROS",
+    "BELLOSSOM",
+    "MARILL",
+    "AZUMARILL",
+    "SUDOWOODO",
+    "POLITOED",
+    "HOPPIP",
+    "SKIPLOOM",
+    "JUMPLUFF",
+    "AIPOM",
+    "SUNKERN",
+    "SUNFLORA",
+    "YANMA",
+    "WOOPER",
+    "QUAGSIRE",
+    "ESPEON",
+    "UMBREON",
+    "MURKROW",
+    "SLOWKING",
+    "MISDREAVUS",
+    "UNOWN",
+    "WOBBUFFET",
+    "GIRAFARIG",
+    "PINECO",
+    "FORRETRESS",
+    "DUNSPARCE",
+    "GLIGAR",
+    "STEELIX",
+    "SNUBBULL",
+    "GRANBULL",
+    "QWILFISH",
+    "SCIZOR",
+    "SHUCKLE",
+    "HERACROSS",
+    "SNEASEL",
+    "TEDDIURSA",
+    "URSARING",
+    "SLUGMA",
+    "MAGCARGO",
+    "SWINUB",
+    "PILOSWINE",
+    "CORSOLA",
+    "REMORAID",
+    "OCTILLERY",
+    "DELIBIRD",
+    "MANTINE",
+    "SKARMORY",
+    "HOUNDOUR",
+    "HOUNDOOM",
+    "KINGDRA",
+    "PHANPY",
+    "DONPHAN",
+    "PORYGON2",
+    "STANTLER",
+    "SMEARGLE",
+    "TYROGUE",
+    "HITMONTOP",
+    "SMOOCHUM",
+    "ELEKID",
+    "MAGBY",
+    "MILTANK",
+    "BLISSEY",
+    "RAIKOU",
+    "ENTEI",
+    "SUICUNE",
+    "LARVITAR",
+    "PUPITAR",
+    "TYRANITAR",
+    "LUGIA",
+    "HO-OH",
+    "CELEBI",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "?",
+    "TREECKO",
+    "GROVYLE",
+    "SCEPTILE",
+    "TORCHIC",
+    "COMBUSKEN",
+    "BLAZIKEN",
+    "MUDKIP",
+    "MARSHTOMP",
+    "SWAMPERT",
+    "POOCHYENA",
+    "MIGHTYENA",
+    "ZIGZAGOON",
+    "LINOONE",
+    "WURMPLE",
+    "SILCOON",
+    "BEAUTIFLY",
+    "CASCOON",
+    "DUSTOX",
+    "LOTAD",
+    "LOMBRE",
+    "LUDICOLO",
+    "SEEDOT",
+    "NUZLEAF",
+    "SHIFTRY",
+    "NINCADA",
+    "NINJASK",
+    "SHEDINJA",
+    "TAILLOW",
+    "SWELLOW",
+    "ROOMISH",
+    "BRELOOM",
+    "SPINDA",
+    "WINGULL",
+    "PELIPPER",
+    "SURSKIT",
+    "MASQUERAIN",
+    "WAILMER",
+    "WAILORD",
+    "SKITTY",
+    "DELCATTY",
+    "KECLEON",
+    "BALTOY",
+    "CLAYDOL",
+    "NOSEPASS",
+    "TORKOAL",
+    "SABLEYE",
+    "BARBOACH",
+    "WHISCASH",
+    "LUVDISC",
+    "CORPHISH",
+    "CRAWDAUNT",
+    "FEEBAS",
+    "MILOTIC",
+    "CARVANHA",
+    "SHARPEDO",
+    "TRAPINCH",
+    "VIBRAVA",
+    "FLYGON",
+    "MAKUHITA",
+    "HARIYAMA",
+    "ELECTRIKE",
+    "MANECTRIC",
+    "NUMEL",
+    "CAMERUPT",
+    "SPHEAL",
+    "SEALEO",
+    "WALREIN",
+    "CACNEA",
+    "CACTURNE",
+    "SNORUNT",
+    "GLALIE",
+    "LUNATONE",
+    "SOLROCK",
+    "AZURILL",
+    "SPOINK",
+    "GRUMPIG",
+    "PLUSLE",
+    "MINUN",
+    "MAWILE",
+    "MEDITITE",
+    "MEDICHAM",
+    "SWABLU",
+    "ALTARIA",
+    "WYNAUT",
+    "DUSKULL",
+    "DUSCLOPS",
+    "ROSELIA",
+    "SLAKOTH",
+    "VIGOROTH",
+    "SLAKING",
+    "GULPIN",
+    "SWALOT",
+    "TROPIUS",
+    "WHISMUR",
+    "LOUDRED",
+    "EXPLOUD",
+    "CLAMPERL",
+    "HUNTAIL",
+    "GOREBYSS",
+    "ABSOL",
+    "SHUPPET",
+    "BANETTE",
+    "SEVIPER",
+    "ZANGOOSE",
+    "RELICANTH",
+    "ARON",
+    "LAIRON",
+    "AGGRON",
+    "CASTFORM",
+    "VOLBEAT",
+    "ILLUMISE",
+    "LILEEP",
+    "CRADILY",
+    "ANORITH",
+    "ARMALDO",
+    "RALTS",
+    "KIRLIA",
+    "GARDEVOIR",
+    "BAGON",
+    "SHELGON",
+    "SALAMENCE",
+    "BELDUM",
+    "METANG",
+    "METAGROSS",
+    "REGIROCK",
+    "REGICE",
+    "REGISTEEL",
+    "KYOGRE",
+    "GROUDON",
+    "RAYQUAZA",
+    "LATIAS",
+    "LATIOS",
+    "JIRACHI",
+    "DEOXYS",
+    "CHIMECHO"
+};
 
 charmap = { [0] =
 " ", "À", "Á", "Â", "Ç", "È", "É", "Ê", "Ë", "Ì", "こ", "Î", "Ï", "Ò", "Ó", "Ô",
@@ -92,7 +508,7 @@ function setupBuffer()
     pathfindBuffer = console:createBuffer("Pathfinder")
     metatileBuffer = console:createBuffer("Metatile")
     debugBuffer = console:createBuffer("Debug")
-    debugBuffer:setSize(100, 80)
+    debugBuffer:setSize(100, 64)
     tileMapBuffer:setSize(100, 100)
     pathfindBuffer:setSize(100, 100)
     metatileBuffer:setSize(200, 200)
@@ -245,6 +661,44 @@ function getPlayTime()
     sendMessage('playtime.playtime', string.format("%d,%d,%d", totalDays, totalHours, playMins))
 end
 
+function sendMapData(updateType)
+    -- updateType == 'layout' or 'position'
+
+    -- we send two map messages:
+    -- map.layout: only sent when the map changes, consists of the full data for this map
+    -- format:
+    -- width | height | tileType[0,0,1...]
+
+    -- tileType can take the following values:
+    -- 0: standard, traversable, non-collisions
+    -- 1: generic collision
+    -- 2: BG object
+    -- 3: warp point
+    -- 4: north-facing ledge
+    -- 5: east-facing ledge
+    -- 6: south-facing ledge
+    -- 7: west-facing ledge
+
+    -- tileType values are a continuous stream of tile values, left-to-right, top-to-bottom
+    -- =========================================
+    -- map.position: sent more frequently, with updates on player position and their current target
+    -- format:
+    -- playerX | playerY | targetX | target Y
+    -- TODO: above to be extended with the set of pathfinding steps to be taken
+    if (updateType == 'layout') then
+        mapMsg = string.format('%d|%d|', mapWidth, mapHeight)
+        for x = 0, mapWidth - 1 do
+            for y = 0, mapHeight - 1 do
+                newMapTileVal = string.format("%d,", map[x][y] and 1 or 0)
+                -- debugBuffer:print(string.format("newMapTileVal: %d", map[x][y] and 1 or 0))
+                mapMsg = mapMsg .. newMapTileVal
+            end
+        end
+        -- debugBuffer:print(string.format("map update msg: %s", mapMsg))
+        sendMessage('map.layout', mapMsg)
+    end
+end
+
 function getMoney()
     saveBlockPointer = emu:read32(SaveBlockLoc)
     save2Pointer = emu:read32(savePointer2Loc)
@@ -253,6 +707,22 @@ function getMoney()
     money = moneyPtr ~ encryptionKey
     -- debugBuffer:print(string.format('money ptr: %d, enc key %x, output money %d', moneyPtr, encryptionKey, money))
     sendMessage('money.money', money)
+end
+
+function getTrainerInfo()
+    save2Pointer = emu:read32(savePointer2Loc)
+    trainerName = emu:readRange(save2Pointer, 8);
+    trainerGender = emu:read8(save2Pointer + 0x008);
+    decodedTrainerName = ""
+    for i = 1, #trainerName do
+        nickChar = string.byte(string.sub(trainerName, i, i))
+        if nickChar == 0xff then break end
+        -- debugBuffer:print(string.format('%x ', nickChar))
+        decNickChar = charmap[nickChar]
+        decodedTrainerName = decodedTrainerName .. decNickChar
+    end
+    -- debugBuffer:print(string.format('trainer name: %s, gender %x', decodedTrainerName, trainerGender));
+    sendMessage('trainer.trainer', string.format("%s,%x", decodedTrainerName, trainerGender));
 end
 
 -- see pokemon.c->GetMonData() and GetBoxMonData() and PokemonSubstruct
@@ -316,7 +786,34 @@ function getPartyInfo(partySlot)
     decryptedChunk = (encryptedChunk ~ encKey)
     -- debugBuffer:print(string.format("decrypted chunk: %x", decryptedChunk))
     -- mankey: d0038
-    species = decryptedChunk & 0xFF -- get first two bytes for species id
+    species = decryptedChunk & 0xFFFF -- get first two bytes for species id
+
+    -- get moves: from Attack substruct
+    attackLoc = rawDataLocation + (subOrder[2] * 12)
+    decrypted = {}
+    moves = {}
+    pp = {}
+
+    encryptedChunk = emu:read32(attackLoc)
+    decryptedChunk = (encryptedChunk ~ encKey)
+    move1 = decryptedChunk & 0x0000FFFF -- get last two bytes for move1
+    move2 = (decryptedChunk & 0xFFFF0000) >> 16 -- get first two bytes for move
+    -- debugBuffer:print(string.format("got chunk: %x move 1: %d, and move 2: %d \n", decryptedChunk, move1, move2))
+
+    encryptedChunk = emu:read32(attackLoc + 4)
+    decryptedChunk = (encryptedChunk ~ encKey)
+    move3 = decryptedChunk & 0x0000FFFF
+    move4 = (decryptedChunk & 0xFFFF0000) >> 16
+
+    encryptedChunk = emu:read32(attackLoc + 8)
+    decryptedChunk = (encryptedChunk ~ encKey)
+    pp1 = decryptedChunk & 0x000000FF
+    pp2 = (decryptedChunk & 0xFF00) >> 8
+    pp3 = (decryptedChunk & 0xFF0000) >> 16
+    pp4 = (decryptedChunk & 0xFF000000) >> 24
+    -- debugBuffer:print(string.format("got chunk: %x pp 1: %d, pp 2: %d, pp 3: %d, pp 4: %d, \n", decryptedChunk, pp1, pp2
+    --     , pp3, pp4))
+
 
     nickname = emu:readRange(currentMonPointer + 8, 10)
     decodedNickname = ""
@@ -331,7 +828,11 @@ function getPartyInfo(partySlot)
     level = emu:read8(currentMonPointer + boxMonStructSize + 4)
     hp = emu:read16(currentMonPointer + boxMonStructSize + 6)
     maxHp = emu:read16(currentMonPointer + boxMonStructSize + 8)
-    sendMessage("party." .. partySlot, string.format("%d|%s|%d|%d|%d", species, decodedNickname, hp, maxHp, level))
+    sendMessage("party." .. partySlot,
+        string.format("%s|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d", speciesNames[species + 1], decodedNickname, hp, maxHp,
+            level, move1, move2, move3, move4, pp1, pp2, pp3, pp4))
+
+
 
 end
 
@@ -362,6 +863,9 @@ function addObjectsToCollisionMap()
         debugBuffer:print(string.format("🧱 Adding object collision %d at %d,%d\n", objectEventIdx,
             objEventX, objEventY))
     end
+
+    freezeForMapTransition = false -- unlock movement now all map data is processed
+    sendMapData("layout")
 
 
 
@@ -417,10 +921,17 @@ function chooseEventToRouteTo()
 
     totalEventsCount = objectEventCount + warpCount + connectionsCount + bgEventCount + coordEventCount
     eventIndex = RNG(1) % totalEventsCount
+
+    routableCount = 0
+    for _ in pairs(disallowedMapTargets) do routableCount = routableCount + 1 end
+    debugBuffer:print(string.format("%d/%d routable targets left on this map\n", totalEventsCount - routableCount,
+        totalEventsCount))
+
     -- debugBuffer:print(string.format("Event %d of %d events\n", eventIndex, totalEventsCount))
     if eventIndex < objectEventCount then
         -- object event
         objectEventIdx = eventIndex
+        if (disallowedMapTargets[string.format("obj-%d", objectEventIdx)]) then return end
         objectEventOffset = objectEventsPointer + (objEventSize * objectEventIdx)
         objEventX = emu:read8(objectEventOffset + 4) + 7
         objEventY = emu:read8(objectEventOffset + 6) + 7
@@ -431,11 +942,16 @@ function chooseEventToRouteTo()
         targetY = objEventY + jitterY
         debugBuffer:print(string.format("🙋 >> Routing to object event %d at %d,%d\n", objectEventIdx,
             objEventX, objEventY))
+        currentTargetName = string.format("obj-%d", objectEventIdx)
         forceRoutableAtTarget = true
         calculatePathToTarget()
     elseif eventIndex < objectEventCount + warpCount then
         -- warp event
         warpEventIdx = eventIndex - objectEventCount
+
+        -- always allow warps
+        -- if (disallowedMapTargets[string.format("warp-%d", warpEventIdx)]) then return end
+
         warpEventOffset = warpEventsPointer + (warpEventSize * warpEventIdx)
         warpX = emu:read16(warpEventOffset) + 7
         warpY = emu:read16(warpEventOffset + 2) + 7
@@ -449,19 +965,25 @@ function chooseEventToRouteTo()
 
         -- debugBuffer:print(string.format("Warp pointer at %x\n", warpEventOffset))
         debugBuffer:print(string.format("🚪 >> Routing to warp event %d at %d,%d\n", warpEventIdx, warpX, warpY))
+        currentTargetName = string.format("warp-%d", warpEventIdx)
 
         forceRoutableAtTarget = true
         gotPath = calculatePathToTarget()
     elseif eventIndex < objectEventCount + warpCount + connectionsCount then
         -- connections
         connectionIdx = eventIndex - (objectEventCount + warpCount)
-        -- debugBuffer:print(string.format("connectionsPointer %x \n", connectionsPointer))
+
+        -- always allow map connections
+        -- if (disallowedMapTargets[string.format("connection-%d", connectionIdx)]) then return end
+
+
         connectionListPointer = emu:read32(connectionsPointer + 0x04)
         connectionOffset = connectionListPointer + (connectionSize * connectionIdx)
         conxDirection = emu:read8(connectionOffset)
         -- debugBuffer:print(string.format("conxDirection %x with val %x \n", connectionIdx, conxDirection))
         debugBuffer:print(string.format("🗺️ >> Routing to connection %d in direction %s\n", connectionIdx,
             connectionDirections[conxDirection]))
+        currentTargetName = string.format("connection-%d", connectionIdx)
         if conxDirection == 1 then
             -- pick a random coordinate on the south-edge without a collision bit
             repeat
@@ -501,6 +1023,7 @@ function chooseEventToRouteTo()
         -- BG events
         bgIndex = eventIndex - (objectEventCount + warpCount + connectionsCount)
         bgOffset = bgEventsPointer + (bgEventSize * bgIndex)
+        if (disallowedMapTargets[string.format("bg-%d", bgIndex)]) then return end
         -- debugBuffer:print(string.format("root bg pointer %x\n", bgEventsPointer))
         -- debugBuffer:print(string.format("bgOffset %x\n", bgOffset))
         bgX = emu:read16(bgOffset) + 7
@@ -511,13 +1034,15 @@ function chooseEventToRouteTo()
         targetY = bgY + jitterY
         debugBuffer:print(string.format("🪧 >> Routing to BG event %d at %d,%d\n", bgIndex,
             bgX, bgY))
+        currentTargetName = string.format("bg-%d", bgIndex)
         forceRoutableAtTarget = true
         calculatePathToTarget()
     elseif eventIndex < objectEventCount + warpCount + connectionsCount + bgEventCount + coordEventCount then
         -- Coord events
         coordIndex = eventIndex - (objectEventCount + warpCount + connectionsCount + bgEventCount)
         coordOffset = coordEventsPointer + (coordEventSize * coordIndex)
-        debugBuffer:print(string.format("coordOffset %x\n", coordOffset))
+        if (disallowedMapTargets[string.format("coord-%d", coordIndex)]) then return end
+        -- debugBuffer:print(string.format("coordOffset %x\n", coordOffset))
         coordX = emu:read16(coordOffset) + 7
         coordY = emu:read16(coordOffset + 0x2) + 7
         jitterX = (RNG(1) % 3) - 1
@@ -526,6 +1051,7 @@ function chooseEventToRouteTo()
         targetY = coordY + jitterY
         debugBuffer:print(string.format("📍 >> Routing to co-ord event %d at %d,%d\n", coordIndex,
             coordX, coordY))
+        currentTargetName = string.format("coord-%d", coordIndex)
         calculatePathToTarget()
 
     end
@@ -720,10 +1246,10 @@ function doMove()
         nextKey = 3
     elseif moveWeight < SELECT_TRIGGER then
         nextKey = 2
-    elseif moveWeight < L_TRIGGER then
-        nextKey = 8
-    elseif moveWeight < R_TRIGGER then
-        nextKey = 9
+        -- elseif moveWeight < L_TRIGGER then
+        --     nextKey = 8
+        -- elseif moveWeight < R_TRIGGER then
+        --     nextKey = 9
     else return end
 
     emu:clearKeys(0x3FF)
@@ -762,6 +1288,11 @@ function doMove()
     posX = (emu:read16(cameraXLoc) >> 4) + 7
     posY = (emu:read16(cameraYLoc) >> 4) + 7
 
+    if freezeForMapTransition then
+        botBuffer:print("Locked movement during map transition")
+        return
+    end
+
     lastKey = nextKey
     emu:addKey(nextKey)
     -- botBuffer:print(string.format("Now pressing %x after roll %x\n", nextKey, moveWeight))
@@ -788,6 +1319,11 @@ collisionMap = {}
 
 map = {}
 metatileMap = {}
+
+-- if player gets stuck trying to reach a target, we disallow it being pathed to until the next map transition
+disallowedMapTargets = {}
+-- unique name for target based on its type and index, eg. connection-2 or bg-4
+currentTargetName = nil
 -- GetMapGridBlockAt and MapGridGetCollisionAt in fieldmap.c have examples of working with map data
 function getMapCollisions()
 
@@ -835,6 +1371,9 @@ function getMapCollisions()
 
 
 
+
+
+
     pathfindBuffer:clear()
     pathfindBuffer:setSize(100, 100)
     map = {}
@@ -861,6 +1400,10 @@ function getMapCollisions()
 
             -- if this is a ledge, set the permitted direction of travel
             -- so the pathfinder can conditionally determine if it can reach it
+
+            -- identify metatile attributes that prevent traversal - eg. in Mt Moon
+
+
             metaTileId = mapTile & 0x03FF;
             if (metaTileId < 640) then
                 -- debugBuffer:print("Primary tileset \n")
@@ -916,6 +1459,7 @@ function getMapCollisions()
         end
     end
     addObjectsToCollisionMap()
+
 end
 
 path = nil
@@ -943,6 +1487,12 @@ pathfinderIsOpen = function(currentPathPos, pos)
             if (metatileBehaviour >= 0x10 and metatileBehaviour <= 0x17) then
                 return false
             end
+
+            -- if this is impassable (eg Mt Moon walls) then treat as collision
+            -- see MB_IMPASSABLE_EAST
+            if (metatileBehaviour >= 0x30 and metatileBehaviour <= 0x37) then return false
+            end
+
         end
         return true
     end
@@ -974,6 +1524,7 @@ pathfinderIsOpen = function(currentPathPos, pos)
         return false
     end
 end
+
 
 function calculatePathToTarget()
     pathfindAttemptCount = 0
@@ -1021,10 +1572,10 @@ function calculatePathToTarget()
 
     -- always pop the first step of the path as it causes a lot of backtracking after warps
     table.remove(path, 1)
-    for i = 1, #path do
-        debugBuffer:print(string.format("Path step %d: %s\n", i, path[i]))
-    end
-    debugBuffer:print(string.format("Pathed after %d metatile tests\n", pathfindAttemptCount))
+    -- for i = 1, #path do
+    --     debugBuffer:print(string.format("Path step %d: %s\n", i, path[i]))
+    -- end
+    -- debugBuffer:print(string.format("Pathed after %d metatile tests\n", pathfindAttemptCount))
     getPlayTime()
     nextPathElement = table.remove(path, 1)
     gotTargetNeedPath = false
@@ -1037,6 +1588,7 @@ function calculatePathToTarget()
 
 end
 
+freezeForMapTransition = false
 function cameraLog()
     -- -- offsets init at 0,0 when loading a new map - they are not absolute positions on the current or global map
     -- posX = (emu:read16(cameraXLoc)) >> 4
@@ -1059,7 +1611,8 @@ function cameraLog()
     end
 
     if stuckCount > stuckLimit then
-        debugBuffer:print("❌ Stuck trying to reach target, requesting new one.\n")
+        debugBuffer:print(string.format("❌ Stuck trying to reach target %s, requesting new one.\n", currentTargetName))
+        disallowedMapTargets[currentTargetName] = true
         needNewTarget = true
         possKeys = {}
         table.insert(possKeys, RNG(1) % 4)
@@ -1116,12 +1669,16 @@ function cameraLog()
     -- target is a connection or a script object
 
     if mapWidth ~= lastMapWidth or mapHeight ~= lastMapHeight then
-        -- TODO: fix to only set targets in routable areas
+        disallowedMapTargets = {}
+
+        freezeForMapTransition = true -- stop all movement until map data is generated
+        emu:clearKeys(0x3FF)
+
         debugBuffer:print(string.format("🛬 === Map transition! ===\n"))
         gotTargetNeedPath = false
         getCurrentLocationName()
         getMoney()
-
+        getTrainerInfo()
 
 
         nextPathElement = nil
